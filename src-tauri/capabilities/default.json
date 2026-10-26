@@ -1,0 +1,17 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Permissions de la fenêtre principale et de la fenêtre de signature",
+  "windows": ["main", "signature-*"],
+  "permissions": [
+    "core:default",
+    "core:webview:allow-create-webview-window",
+    "core:window:allow-close",
+    "core:window:allow-set-focus",
+    "dialog:default",
+    "notification:default",
+    "opener:default",
+    { "identifier": "opener:allow-open-path", "allow": [{ "path": "$APPDATA/**" }, { "path": "$DOCUMENT/**" }, { "path": "**" }] },
+    "opener:allow-open-url"
+  ]
+}
