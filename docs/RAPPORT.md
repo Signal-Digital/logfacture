@@ -6,12 +6,12 @@
 
 | Vérification | Résultat |
 |---|---|
-| Tests TypeScript (Vitest, 7 suites) | **76/76** réussis — calculs, CRM, pipeline, activités, devis, factures, acomptes, soldes, avoirs, paiements, numérotation, immutabilité, PDF (1, 45, 100 lignes, ligne géante), modèles PDF/image/DOCX, signatures, sécurité, contrats, rapports, emails, Factur-X |
+| Tests TypeScript (Vitest, 6 suites) | **76/76** réussis — calculs, CRM, pipeline, activités, devis, factures, acomptes, soldes, avoirs, paiements, numérotation, immutabilité, PDF (1, 45, 100 lignes, ligne géante), modèles PDF/image/DOCX, signatures, sécurité, contrats, rapports, emails, Factur-X |
 | Tests Rust (cargo) | **11/11** réussis — SQLite paramétré, transactions, persistance après réouverture, confinement des chemins, sauvegarde/vérification/restauration, chiffrement, détection d'altération |
 | Parcours complet dans l'interface (Playwright) | Paramètres → prospect → devis (catalogue) → finalisation → signature dessinée → acceptation → facture → émission → paiement partiel → pipeline (glisser-déposer) → éditeur de modèles → rapports : **13/13 étapes, 0 erreur console** |
 | Application de bureau réelle (Tauri pilotée par WebDriver, Linux) | Commandes natives, base SQLite sur disque, déclencheurs, rollback, PDF stockés, signature et vérification, sauvegarde chiffrée, mauvaise phrase refusée, test d'intégrité, restauration avec sauvegarde de sécurité, conversion DOCX→PDF via LibreOffice : **tout réussi** |
 | Rendu PDF | Contrôlé visuellement (rastérisation) : devis, factures multi-TVA, multipages, fond PDF importé, logo, PDF signé + certificat, DOCX converti |
-| Windows (GitHub Actions, windows-latest) | Typage et tests TypeScript réussis ; tests Rust et compilation de l'installateur : voir le résultat de l'exécution du workflow |
+| Windows (GitHub Actions, windows-latest) | **Réussi** : typage, 76 tests TypeScript, 11 tests Rust (release) et compilation des installateurs NSIS + MSI (artefact « SignalDesk-Windows », 11,6 Mo, exécution n° 1 du workflow) |
 
 ## Fonctionnalités opérationnelles
 
