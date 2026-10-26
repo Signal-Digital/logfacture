@@ -5,6 +5,8 @@ import type { FileStore } from '@/lib/files';
 export interface Ctx {
   db: Db;
   files: FileStore;
+  /** Conversion DOCX → PDF (LibreOffice ou Word) ; absente si aucun convertisseur. */
+  convertDocx?: (docx: Uint8Array) => Promise<Uint8Array>;
 }
 
 /** Erreur métier : message destiné à l'utilisateur, sans détail technique. */
