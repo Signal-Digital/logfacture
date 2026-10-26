@@ -20,19 +20,26 @@ Mis à jour à chaque étape pour permettre de reprendre le développement sans 
 
 ## Phases
 
-- [x] Phase 1 — Environnement, architecture, socle Tauri/React, cœur Rust (SQLite, fichiers, sauvegardes, conversion DOCX) — 11 tests Rust
+- [x] Phase 1 — Environnement, architecture, socle Tauri/React, cœur Rust
 - [x] Phase 2 — Schéma, migrations, déclencheurs de protection, paramètres
-- [x] Phase 3 — Entreprises/prospects/clients, contacts, doublons, fusion, CSV, pipeline
-- [x] Phase 4 — Activités, tâches, relances, rappels
+- [x] Phase 3 — Entreprises/prospects/clients, contacts, doublons, fusion, CSV, pipeline Kanban
+- [x] Phase 4 — Activités, tâches, relances, rappels locaux, calendrier
 - [x] Phase 5 — Catalogue, projets, modèles de projet
 - [x] Phase 6 — Devis (versions, verrouillage), factures, acomptes, soldes, avoirs, paiements, numérotation
-- [~] Phase 7 — Moteur PDF (pagination, fonds importés) fait ; éditeur visuel et import DOCX : en cours
-- [ ] Phase 8 — Signatures, suivi des paiements (interface)
-- [~] Phase 9 — Contrats récurrents, rapports, emails : logique faite ; interface à faire
-- [ ] Phase 10 — Sauvegardes (interface), sécurité (mot de passe, verrouillage)
-- [ ] Phase 11 — Tests de bout en bout
-- [ ] Phase 12 — Compilation, installateur, documentation
+- [x] Phase 7 — Moteur PDF paginé, import PDF/image/DOCX, éditeur visuel
+- [x] Phase 8 — Signatures (écran isolé, certificat), suivi des paiements, relances
+- [x] Phase 9 — Contrats récurrents, rapports, emails
+- [x] Phase 10 — Sauvegardes (chiffrées, vérifiées, restaurables), mot de passe, verrouillage
+- [x] Phase 11 — 76 tests TS + 11 tests Rust, parcours UI Playwright, test natif Tauri/WebDriver
+- [x] Phase 12 — Workflow d'installateur Windows, documentation
+
+## Reprise du développement
+
+Voir docs/RAPPORT.md (limites restantes et pistes). Commandes : `npm test`, `cargo test` (src-tauri), `npx tauri dev`.
 
 ## Journal
 
 - Inter testée pour les PDF : le sous-ensemble produit par pdf-lib perd des glyphes (vérifié par rendu `pdftoppm`). Remplacée par Liberation Sans : PDF de 35 à 80 Ko au lieu de 850 Ko.
+- Mode navigateur (sql.js en mémoire) conservé pour tester l'interface sans Windows ; signature ouverte dans le même onglet dans ce mode.
+- Fenêtre de signature Tauri : routeur restreint à l'écran de signature (isolation du CRM).
+- Test natif : binaire `cargo build` (devUrl) piloté par tauri-driver + WebKitWebDriver sous Xvfb.
