@@ -14,7 +14,7 @@ import { patchSetting } from '@/domain/settings';
 import { dashboard, periodFor, monthlySeries, topServices, receivablesAging } from '@/domain/reports';
 import { mergeTemplate, mailtoLink, listEmailTemplates, unresolvedFields } from '@/domain/emails';
 import { createOpportunity } from '@/domain/pipeline';
-import { addDays, addMonths, today } from '@/lib/format';
+import { addMonths, today } from '@/lib/format';
 import type { DocLine } from '@/domain/docCommon';
 
 const line = (d: string, price: number, vat = 2000): DocLine => ({ kind: 'item', designation: d, quantity_milli: 1000, unit_price_cents: price, discount_type: 'none', discount_value: 0, vat_rate_bp: vat, unit: 'forfait' });

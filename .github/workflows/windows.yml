@@ -1,0 +1,49 @@
+name: Windows — tests et installateur
+
+on:
+  push:
+    branches: ['**']
+  workflow_dispatch:
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Installer les dépendances
+        run: npm ci
+
+      - name: Vérification des types
+        run: npm run typecheck
+
+      - name: Tests (logique métier, PDF, signatures)
+        run: npm test
+
+      - name: Tests Rust (base, fichiers, sauvegardes)
+        working-directory: src-tauri
+        run: cargo test --release
+
+      - name: Compiler l'application et l'installateur
+        run: npx tauri build
+
+      - name: Publier l'installateur
+        uses: actions/upload-artifact@v4
+        with:
+          name: SignalDesk-Windows
+          path: |
+            src-tauri/target/release/bundle/nsis/*.exe
+            src-tauri/target/release/bundle/msi/*.msi
+          if-no-files-found: error
