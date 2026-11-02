@@ -1,6 +1,6 @@
 [package]
 name = "signal-desk"
-version = "0.1.0"
+version = "0.2.0"
 description = "Signal Desk — CRM, devis, facturation et signatures (Signal Digital)"
 authors = ["Signal Digital"]
 edition = "2021"

@@ -51,7 +51,7 @@ export async function createBrowserPlatform(): Promise<Platform> {
   return {
     kind: 'browser',
     ctx: { db, files },
-    info: { data_dir: '(mémoire du navigateur)', files_dir: '(mémoire)', db_path: '(mémoire)', default_backup_dir: '', version: '0.1.0', os: 'navigateur' },
+    info: { data_dir: '(mémoire du navigateur)', files_dir: '(mémoire)', db_path: '(mémoire)', default_backup_dir: '', version: '0.2.0', os: 'navigateur' },
     pickFile({ extensions }) {
       return new Promise((resolve) => {
         const input = document.createElement('input');

@@ -5,7 +5,7 @@
 1. Récupérez l'installateur :
    - soit l'artefact **SignalDesk-Windows** de la dernière exécution réussie du workflow GitHub Actions « Windows — tests et installateur » (onglet *Actions* du dépôt) ;
    - soit compilez-le vous-même (section 2).
-2. Lancez `Signal Desk_0.1.0_x64-setup.exe` (installation pour l'utilisateur courant, sans droits administrateur) ou le fichier `.msi`.
+2. Lancez `Signal Desk_0.2.0_x64-setup.exe` (installation pour l'utilisateur courant, sans droits administrateur) ou le fichier `.msi`.
 3. Windows SmartScreen peut afficher un avertissement car l'installateur n'est pas signé par un certificat de signature de code (payant). Cliquez sur « Informations complémentaires » puis « Exécuter quand même ».
 4. WebView2 est déjà présent sur Windows 10 (à jour) et 11. Sinon, l'installateur NSIS le télécharge depuis Microsoft (seule connexion réseau, au moment de l'installation).
 
@@ -14,6 +14,13 @@ Au premier lancement :
 - ouvrez **Paramètres → TVA** et indiquez votre régime (franchise en base ou assujetti) — il n'est jamais supposé ;
 - ajoutez votre IBAN (**Paramètres → Paiement**) et votre logo ;
 - choisissez le dossier de sauvegarde (**Paramètres → Sauvegardes**), idéalement un disque externe.
+
+### Mettre à jour vers une nouvelle version
+
+1. Par précaution, faites une sauvegarde : **Paramètres → Sauvegardes → Sauvegarder maintenant**.
+2. Fermez Signal Desk.
+3. Lancez le nouvel installateur `-setup.exe` **sans désinstaller l'ancienne version** : il la remplace.
+4. Rouvrez Signal Desk. Vos données (dossier ci-dessous) sont conservées ; la base est mise à jour automatiquement au démarrage (migrations).
 
 ### Emplacement des données
 
@@ -53,8 +60,8 @@ powershell -ExecutionPolicy Bypass -File scripts\build-windows.ps1
 ```
 
 Résultat :
-- `src-tauri\target\release\bundle\nsis\Signal Desk_0.1.0_x64-setup.exe`
-- `src-tauri\target\release\bundle\msi\Signal Desk_0.1.0_x64_fr-FR.msi`
+- `src-tauri\target\release\bundle\nsis\Signal Desk_0.2.0_x64-setup.exe`
+- `src-tauri\target\release\bundle\msi\Signal Desk_0.2.0_x64_fr-FR.msi`
 
 ## 3. Lancer en développement
 

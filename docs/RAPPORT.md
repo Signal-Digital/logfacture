@@ -1,6 +1,6 @@
 # Rapport : fonctionnalités terminées et limites restantes
 
-État au 26 octobre 2026 — version 0.1.0.
+État au 26 octobre 2026 — version 0.2.0.
 
 ## Vérifications réalisées
 
