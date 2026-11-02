@@ -74,6 +74,7 @@ export function CompanyDetail() {
               {(close) => (
                 <>
                   <button onClick={() => { close(); nav(`/devis/nouveau?entreprise=${c.id}`); }}><FileSignature /> Devis</button>
+                  <button onClick={() => { close(); nav(`/devis?externe=1&entreprise=${c.id}`); }}><FileSignature /> Devis externe (fait ailleurs)</button>
                   <button onClick={() => { close(); nav(`/factures/nouvelle?entreprise=${c.id}`); }}><Receipt /> Facture</button>
                   <button onClick={() => { close(); setModal('opportunite'); }}><Briefcase /> Opportunité</button>
                   <button onClick={() => { close(); nav(`/projets?nouveau=1&entreprise=${c.id}`); }}><FolderKanban /> Projet</button>

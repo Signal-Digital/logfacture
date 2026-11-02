@@ -571,6 +571,16 @@ WHEN OLD.locked = 1 AND (NEW.file_path IS NOT OLD.file_path OR NEW.sha256 IS NOT
 BEGIN ${LOCK('documents', 'Document verrouillé (émis ou signé) : modification interdite.')}; END;
 `,
   },
+  {
+    version: 2,
+    name: 'devis externes',
+    sql: `
+-- Devis réalisés en dehors de Signal Desk (enregistrés ou importés).
+ALTER TABLE quotes ADD COLUMN origin TEXT NOT NULL DEFAULT 'signal_desk' CHECK (origin IN ('signal_desk','externe'));
+ALTER TABLE quotes ADD COLUMN external_ref TEXT;
+CREATE INDEX idx_quotes_external_ref ON quotes(external_ref);
+`,
+  },
 ];
 
 export async function migrate(db: Db): Promise<number> {

@@ -176,16 +176,21 @@ export async function nextNumber(db: Db, series: Series, dateIso: string, s: All
   const year = seriesYear(format, dateIso);
   await db.run('INSERT INTO number_sequences (series, year, last_number) VALUES (?, ?, 0) ON CONFLICT(series, year) DO NOTHING', [series, year]);
   await db.run('UPDATE number_sequences SET last_number = last_number + 1 WHERE series = ? AND year = ?', [series, year]);
-  const row = await db.get<{ last_number: number }>('SELECT last_number FROM number_sequences WHERE series = ? AND year = ?', [series, year]);
-  const number = formatNumber(format, row!.last_number, dateIso, s.numbering.min_digits);
   const table = series === 'devis' ? 'quotes' : 'invoices';
-  const clash = await db.get(`SELECT 1 FROM ${table} WHERE number = ?`, [number]);
-  if (clash) {
-    throw new BusinessError(
-      `Le numéro ${number} existe déjà. Vérifiez le format de numérotation dans les paramètres (un changement de format en cours d'année peut provoquer ce conflit).`,
-    );
+  for (let attempt = 0; ; attempt++) {
+    const row = await db.get<{ last_number: number }>('SELECT last_number FROM number_sequences WHERE series = ? AND year = ?', [series, year]);
+    const number = formatNumber(format, row!.last_number, dateIso, s.numbering.min_digits);
+    const clash = await db.get(`SELECT 1 FROM ${table} WHERE number = ?`, [number]);
+    if (!clash) return number;
+    // Devis : un numéro déjà pris (ex. devis externe importé avec son numéro d'origine) est sauté.
+    // Factures et avoirs : jamais de saut silencieux, la série doit rester continue.
+    if (series !== 'devis' || attempt > 10000) {
+      throw new BusinessError(
+        `Le numéro ${number} existe déjà. Vérifiez le format de numérotation dans les paramètres (un changement de format en cours d'année peut provoquer ce conflit).`,
+      );
+    }
+    await db.run('UPDATE number_sequences SET last_number = last_number + 1 WHERE series = ? AND year = ?', [series, year]);
   }
-  return number;
 }
 
 // ---------- Mentions légales ----------

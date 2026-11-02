@@ -6,12 +6,12 @@
 
 | Vérification | Résultat |
 |---|---|
-| Tests TypeScript (Vitest, 6 suites) | **76/76** réussis — calculs, CRM, pipeline, activités, devis, factures, acomptes, soldes, avoirs, paiements, numérotation, immutabilité, PDF (1, 45, 100 lignes, ligne géante), modèles PDF/image/DOCX, signatures, sécurité, contrats, rapports, emails, Factur-X |
+| Tests TypeScript (Vitest, 6 suites) | **80/80** réussis — calculs, CRM, pipeline, activités, devis, factures, acomptes, soldes, avoirs, paiements, numérotation, immutabilité, PDF (1, 45, 100 lignes, ligne géante), modèles PDF/image/DOCX, signatures, sécurité, contrats, rapports, emails, Factur-X |
 | Tests Rust (cargo) | **11/11** réussis — SQLite paramétré, transactions, persistance après réouverture, confinement des chemins, sauvegarde/vérification/restauration, chiffrement, détection d'altération |
 | Parcours complet dans l'interface (Playwright) | Paramètres → prospect → devis (catalogue) → finalisation → signature dessinée → acceptation → facture → émission → paiement partiel → pipeline (glisser-déposer) → éditeur de modèles → rapports : **13/13 étapes, 0 erreur console** |
 | Application de bureau réelle (Tauri pilotée par WebDriver, Linux) | Commandes natives, base SQLite sur disque, déclencheurs, rollback, PDF stockés, signature et vérification, sauvegarde chiffrée, mauvaise phrase refusée, test d'intégrité, restauration avec sauvegarde de sécurité, conversion DOCX→PDF via LibreOffice : **tout réussi** |
 | Rendu PDF | Contrôlé visuellement (rastérisation) : devis, factures multi-TVA, multipages, fond PDF importé, logo, PDF signé + certificat, DOCX converti |
-| Windows (GitHub Actions, windows-latest) | **Réussi** : typage, 76 tests TypeScript, 11 tests Rust (release) et compilation des installateurs NSIS + MSI (artefact « SignalDesk-Windows », 11,6 Mo, exécution n° 1 du workflow) |
+| Windows (GitHub Actions, windows-latest) | **Réussi** : typage, 80 tests TypeScript, 11 tests Rust (release) et compilation des installateurs NSIS + MSI (artefact « SignalDesk-Windows », 11,6 Mo, exécution n° 1 du workflow) |
 
 ## Fonctionnalités opérationnelles
 
@@ -23,6 +23,7 @@
 - **Devis** : brouillons à enregistrement automatique, numérotation configurable, lignes illimitées (sections, textes), remises ligne et globale, TVA multiples, acompte, conditions, notes internes, pièces jointes, aperçu, PDF, impression, duplication, email (copie / messagerie), historique, archivage, 7 statuts, expiration automatique, versions figées (SHA-256), verrouillage en base.
 - **Signature** : écran séparé et isolé, tracé souris/stylet/doigt, nom, qualité, mention recopiée, consentement, horodatage, liaison à la version exacte, contrôle d'empreinte, PDF signé + certificat, original conservé, journal immuable, vérification d'intégrité.
 - **Facturation** : factures ponctuelles, depuis devis (totale, acompte, solde avec déduction par taux de TVA), récurrentes, avoirs totaux/partiels ; numérotation chronologique sans doublon ni trou à l'émission ; contrôles réglementaires avant émission ; mentions automatiques ; instantanés figés ; PDF définitif unique ; immutabilité en base ; recherche, archivage, duplication ; export XML CII (préparation Factur-X).
+- **Devis externes** : enregistrement d'un devis réalisé ailleurs (référence d'origine, montants par taux de TVA, statut, PDF d'origine verrouillé) et import en masse depuis un CSV/Excel ; suivi, statistiques et facturation comme un devis interne.
 - **Paiements** : paiements multiples, refus du trop-perçu, solde, retard en jours, suppression motivée et journalisée, moyens configurables, balance âgée, relances (avant échéance, première, finale) prévisualisées et journalisées, export CSV.
 - **Projets** : statuts configurables, modèles de tâches, échéances, montant, devis/factures liés, fichiers, historique, création depuis devis accepté ou opportunité gagnée.
 - **Contrats récurrents** : périodicités, dates de début / renouvellement / fin, résiliation, statut, revenu mensuel et annuel, préparation des factures sans doublon (contrainte d'unicité), émission automatique uniquement si doublement activée.

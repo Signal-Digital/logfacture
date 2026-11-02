@@ -31,6 +31,14 @@
 - **Fusionner** deux fiches : Entreprises → Doublons. Tout l'historique est rattaché à la fiche conservée.
 - **Import / export CSV** : Prospects → Importer CSV (association des colonnes, doublons ignorés par défaut) ; Exporter CSV (séparateur « ; », compatible Excel).
 
+## Devis réalisés en dehors de Signal Desk
+
+Devis → **Devis externes** (ou, depuis une fiche client, Créer → Devis externe) :
+- **Enregistrer un devis externe** : client, référence d'origine, date, objet, statut (envoyé, en attente de signature, accepté, refusé, expiré), montant(s) HT avec leur taux de TVA — sans ressaisir le détail des lignes —, PDF d'origine (facultatif, conservé verrouillé), note.
+- **Importer plusieurs devis (CSV / Excel)** : colonnes Client, Référence, Date, Montant HT (obligatoires), Taux TVA, Désignation, Objet, Validité, Statut, Date d'acceptation, Email, Adresse, Code postal, Ville. Un modèle de fichier est téléchargeable. Plusieurs lignes avec le même client et la même référence forment un seul devis. Les clients sont retrouvés par leur nom (sinon une fiche est créée) ; un devis déjà enregistré n'est jamais importé deux fois. Depuis Excel : « Enregistrer sous » → « CSV (séparateur : point-virgule) ».
+
+Le devis reçoit un numéro interne, garde sa référence d'origine (affichée, recherchable, citée sur les factures), compte dans le tableau de bord, les rapports et le pipeline, et se facture comme un autre devis (totale, acompte, solde). Un devis accepté convertit le prospect en client. Signal Desk ne génère jamais de PDF à sa place : pour le faire signer dans Signal Desk, joignez d'abord son PDF d'origine.
+
 ## Projets et contrats
 
 - **Projets** : statuts configurables, tâches avec échéances, fichiers, devis et factures liés. Les **modèles de projet** (Paramètres → Projets) créent automatiquement la liste de tâches.

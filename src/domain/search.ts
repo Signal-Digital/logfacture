@@ -31,10 +31,11 @@ export async function globalSearch(db: Db, query: string, limit = 8): Promise<Se
     hits.push({ type: 'contact', id: k.id, title: [k.first_name, k.last_name].filter(Boolean).join(' '), subtitle: [k.company, k.email].filter(Boolean).join(' · '), route: k.company_id ? `/entreprises/${k.company_id}` : '/contacts' });
   }
   const quotes = await db.all<any>(
-    `SELECT q.id, q.number, q.title, c.name AS company FROM quotes q JOIN companies c ON c.id = q.company_id WHERE lower(q.number) LIKE ? OR lower(q.title) LIKE ? ORDER BY q.id DESC LIMIT ?`,
-    [like, like, limit],
+    `SELECT q.id, q.number, q.title, q.external_ref, c.name AS company FROM quotes q JOIN companies c ON c.id = q.company_id
+     WHERE lower(q.number) LIKE ? OR lower(q.title) LIKE ? OR lower(COALESCE(q.external_ref,'')) LIKE ? ORDER BY q.id DESC LIMIT ?`,
+    [like, like, like, limit],
   );
-  for (const x of quotes) hits.push({ type: 'devis', id: x.id, title: `Devis ${x.number}`, subtitle: [x.company, x.title].filter(Boolean).join(' · '), route: `/devis/${x.id}` });
+  for (const x of quotes) hits.push({ type: 'devis', id: x.id, title: `Devis ${x.number}`, subtitle: [x.company, x.external_ref ? `réf. d'origine ${x.external_ref}` : null, x.title].filter(Boolean).join(' · '), route: `/devis/${x.id}` });
   const invoices = await db.all<any>(
     `SELECT i.id, i.number, i.kind, i.title, c.name AS company FROM invoices i JOIN companies c ON c.id = i.company_id WHERE lower(COALESCE(i.number,'')) LIKE ? OR lower(i.title) LIKE ? ORDER BY i.id DESC LIMIT ?`,
     [like, like, limit],

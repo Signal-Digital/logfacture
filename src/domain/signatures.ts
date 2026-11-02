@@ -76,7 +76,10 @@ export async function createSignatureRequest(ctx: Ctx, quoteId: number): Promise
   }
   const v = await ctx.db.get<QuoteVersion>('SELECT * FROM quote_versions WHERE quote_id = ? AND version = ?', [quoteId, q.version]);
   assert(v, 'Version figée introuvable.');
-  if (!v.pdf_path) await storeQuoteVersionPdf(ctx, v.id);
+  if (!v.pdf_path) {
+    if (q.origin === 'externe') throw new BusinessError('Joignez le PDF du devis d\'origine avant de le faire signer.');
+    await storeQuoteVersionPdf(ctx, v.id);
+  }
   const existing = await ctx.db.get<SignatureRequest>("SELECT * FROM signature_requests WHERE quote_version_id = ? AND status = 'ouverte' AND channel = 'local'", [v.id]);
   if (existing) return existing;
   const token = randomToken(24);

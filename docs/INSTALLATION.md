@@ -70,7 +70,7 @@ Mode navigateur (démonstration de l'interface uniquement, données en mémoire 
 
 | Commande | Portée |
 |---|---|
-| `npm test` | 76 tests : calculs, CRM, pipeline, devis, factures, avoirs, paiements, numérotation, PDF multipages, modèles importés, DOCX, signatures, sécurité, contrats, rapports |
+| `npm test` | 80 tests : calculs, CRM, pipeline, devis, factures, avoirs, paiements, numérotation, PDF multipages, modèles importés, DOCX, signatures, sécurité, contrats, rapports, devis externes |
 | `cd src-tauri && cargo test` | 11 tests : SQLite paramétré, transactions, persistance, chemins de fichiers, sauvegarde / vérification / restauration, chiffrement, détection d'altération |
 | `npm run typecheck` | Vérification TypeScript stricte |
 

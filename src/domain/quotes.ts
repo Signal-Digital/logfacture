@@ -22,6 +22,7 @@ import {
   saveLines,
   sellerSnapshot,
   type DocLine,
+  validateLines,
   type IssueCheck,
   type SellerSnapshot,
 } from './docCommon';
@@ -71,6 +72,8 @@ export interface Quote {
   refused_at: string | null;
   cancelled_at: string | null;
   accepted_version_id: number | null;
+  origin: 'signal_desk' | 'externe';
+  external_ref: string | null;
   archived_at: string | null;
   created_at: string;
   updated_at: string;
@@ -249,9 +252,19 @@ export async function checkQuote(db: Db, id: number): Promise<IssueCheck> {
  * Fige le devis (version enregistrée + empreinte) et le passe à « envoyé »
  * ou « en attente de signature ». Retourne la version créée.
  */
-export async function finalizeQuote(db: Db, id: number, opts: { awaitingSignature?: boolean } = {}): Promise<QuoteVersion> {
-  const check = await checkQuote(db, id);
-  if (check.errors.length) throw new BusinessError('Le devis ne peut pas être finalisé :', check.errors);
+export async function finalizeQuote(db: Db, id: number, opts: { awaitingSignature?: boolean; external?: boolean } = {}): Promise<QuoteVersion> {
+  if (opts.external) {
+    // Devis émis hors de Signal Desk : seul le contenu saisi est contrôlé
+    // (les mentions et paramètres administratifs relèvent du document d'origine).
+    const q = await getQuote(db, id);
+    assert(q, 'Devis introuvable.');
+    const errors = validateLines(q.lines);
+    if (!q.lines.some((l) => l.kind === 'item')) errors.push('Indiquez au moins un montant.');
+    if (errors.length) throw new BusinessError('Le devis externe est incomplet :', errors);
+  } else {
+    const check = await checkQuote(db, id);
+    if (check.errors.length) throw new BusinessError('Le devis ne peut pas être finalisé :', check.errors);
+  }
   return db.tx(async (t) => {
     const q = await getQuote(t, id);
     assert(q, 'Devis introuvable.');
@@ -266,7 +279,7 @@ export async function finalizeQuote(db: Db, id: number, opts: { awaitingSignatur
       [status, JSON.stringify(snapshot.client), JSON.stringify(snapshot.seller), q.totals.total_ht_cents, q.totals.total_vat_cents, q.totals.total_ttc_cents, id],
     );
     const r = await t.run('INSERT INTO quote_versions (quote_id, version, snapshot, snapshot_sha256, reason) VALUES (?, ?, ?, ?, ?)', [
-      id, q.version, json, hash, q.version === 1 ? 'Version initiale' : 'Nouvelle version',
+      id, q.version, json, hash, opts.external ? 'Devis externe enregistré' : q.version === 1 ? 'Version initiale' : 'Nouvelle version',
     ]);
     if (q.opportunity_id) {
       const stage = await t.get<{ id: number }>("SELECT id FROM pipeline_stages WHERE name = 'Devis envoyé' AND archived_at IS NULL");
@@ -478,9 +491,9 @@ export async function listQuotes(
   if (f.from) { where.push('q.issue_date >= ?'); params.push(f.from); }
   if (f.to) { where.push('q.issue_date <= ?'); params.push(f.to); }
   if (f.search?.trim()) {
-    where.push('(lower(q.number) LIKE ? OR lower(q.title) LIKE ? OR lower(c.name) LIKE ?)');
+    where.push("(lower(q.number) LIKE ? OR lower(q.title) LIKE ? OR lower(c.name) LIKE ? OR lower(COALESCE(q.external_ref,'')) LIKE ?)");
     const s = `%${f.search.trim().toLowerCase()}%`;
-    params.push(s, s, s);
+    params.push(s, s, s, s);
   }
   return db.all<QuoteListRow>(
     `SELECT q.*, c.name AS company_name,

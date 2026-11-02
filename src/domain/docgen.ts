@@ -115,6 +115,7 @@ export async function storeQuoteVersionPdf(ctx: Ctx, versionId: number): Promise
   if (v.pdf_path && v.pdf_sha256) return { path: v.pdf_path, sha256: v.pdf_sha256 };
   const q = await getQuote(ctx.db, v.quote_id);
   assert(q, 'Devis introuvable.');
+  if (q.origin === 'externe') throw new BusinessError('Devis externe : seul le PDF d\'origine peut lui être associé (Signal Desk ne génère pas de PDF à sa place).');
   const snapshot: QuoteSnapshot = JSON.parse(v.snapshot);
   const tpl = await resolveTemplate(ctx.db, q.template_id, 'devis');
   const pdf = await renderWithTemplate(ctx, snapshot, tpl);

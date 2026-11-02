@@ -262,7 +262,7 @@ export function displayStatus(inv: Pick<Invoice, 'status' | 'kind' | 'due_date'>
 
 export async function getInvoice(db: Db, id: number): Promise<InvoiceFull | undefined> {
   const inv = await db.get<Invoice & { company_name: string; quote_number: string | null; credited_invoice_number: string | null }>(
-    `SELECT i.*, c.name AS company_name, q.number AS quote_number, ci.number AS credited_invoice_number
+    `SELECT i.*, c.name AS company_name, COALESCE(q.external_ref, q.number) AS quote_number, ci.number AS credited_invoice_number
      FROM invoices i JOIN companies c ON c.id = i.company_id LEFT JOIN quotes q ON q.id = i.quote_id
      LEFT JOIN invoices ci ON ci.id = i.credited_invoice_id WHERE i.id = ?`,
     [id],

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
-  Archive, CheckCircle2, Copy, Eye, FileSignature, FolderKanban, GitBranch, Mail, PenLine, Plus, Receipt, Search, Send, ShieldCheck, Trash2, XCircle, Ban, Paperclip,
+  Archive, CheckCircle2, Copy, Eye, FileInput, FileSignature, Upload, FolderKanban, GitBranch, Mail, PenLine, Plus, Receipt, Search, Send, ShieldCheck, Trash2, XCircle, Ban, Paperclip,
 } from 'lucide-react';
 import { useApp, useData } from '../core/app';
 import { useLeaveGuard } from '../core/guard';
@@ -12,6 +12,8 @@ import { TotalsBox } from '../doc/Totals';
 import { PdfPreviewModal, StoredPdfActions, StoredPdfView } from '../doc/PdfActions';
 import { EmailComposer } from '../forms/EmailComposer';
 import { AttachmentsCard } from './Documents';
+import { ExternalImportModal, ExternalQuoteModal } from './ExternalQuotes';
+import { attachExternalPdf } from '@/domain/externalQuotes';
 import {
   QUOTE_STATUSES, acceptQuote, archiveQuote, cancelQuote, checkQuote, createQuote, deleteDraftQuote, duplicateQuote, finalizeQuote, getQuote,
   listQuotes, listVersions, newVersion, refuseQuote, saveQuoteDraft, type QuoteFull, type QuoteHeaderInput, type QuoteStatus,
@@ -38,9 +40,28 @@ export function QuotesPage() {
   const { sorted, header } = useSort(data, { key: 'issue_date', dir: 'desc' });
   const opp = Number(params.get('opportunite')) || null;
   const rows = opp ? sorted.filter((q) => q.opportunity_id === opp) : sorted;
+  const [external, setExternal] = useState<'saisie' | 'import' | null>(params.get('externe') ? 'saisie' : null);
   return (
     <>
-      <PageHead title="Devis" subtitle="Brouillons, envois, signatures et acceptations" actions={<Button variant="accent" icon={Plus} onClick={() => nav('/devis/nouveau')}>Nouveau devis</Button>} />
+      <PageHead
+        title="Devis"
+        subtitle="Brouillons, envois, signatures et acceptations"
+        actions={
+          <>
+            <Dropdown align="right" width={280} trigger={(open) => <Button icon={FileInput} onClick={open}>Devis externes</Button>}>
+              {(close) => (
+                <>
+                  <button onClick={() => { close(); setExternal('saisie'); }}><FileInput /> Enregistrer un devis externe</button>
+                  <button onClick={() => { close(); setExternal('import'); }}><Upload /> Importer plusieurs devis (CSV / Excel)</button>
+                </>
+              )}
+            </Dropdown>
+            <Button variant="accent" icon={Plus} onClick={() => nav('/devis/nouveau')}>Nouveau devis</Button>
+          </>
+        }
+      />
+      {external === 'saisie' && <ExternalQuoteModal companyId={Number(params.get('entreprise')) || null} onClose={() => setExternal(null)} />}
+      {external === 'import' && <ExternalImportModal onClose={() => setExternal(null)} />}
       <div className="toolbar">
         <div className="search"><Search /><input className="input" placeholder="Numéro, objet, client…" value={search} onChange={(e) => setSearch(e.target.value)} /></div>
         <div className="row wrap" style={{ gap: 6 }}>
@@ -70,7 +91,7 @@ export function QuotesPage() {
               <tbody>
                 {rows.map((q) => (
                   <tr key={q.id} className="clickable" onClick={() => nav(`/devis/${q.id}`)}>
-                    <td className="cell-title">{q.number}{q.version > 1 && <span className="muted"> v{q.version}</span>}</td>
+                    <td><div className="cell-title">{q.number}{q.version > 1 && <span className="muted"> v{q.version}</span>}</div>{q.origin === 'externe' && <div className="cell-sub">Externe · réf. {q.external_ref}</div>}</td>
                     <td>{q.company_name}</td>
                     <td className="muted">{q.title}</td>
                     <td>{formatDate(q.issue_date)}</td>
@@ -306,8 +327,13 @@ function QuoteView({ quote: q }: { quote: QuoteFull }) {
   const signedDoc = sigs?.find((s) => s.quote_version_id === current?.id);
   const st = quoteStatus(q.status);
 
+  const isExternal = q.origin === 'externe';
   const ensurePdf = async () => {
-    if (current && !current.pdf_path) await run(() => storeQuoteVersionPdf(ctx, current.id));
+    if (current && !current.pdf_path && !isExternal) await run(() => storeQuoteVersionPdf(ctx, current.id));
+  };
+  const attachPdf = async () => {
+    const f = await platform.pickFile({ title: 'PDF du devis d\'origine', extensions: ['pdf'], label: 'PDF' });
+    if (f) await run(() => attachExternalPdf(ctx, q.id, { name: f.name, bytes: f.bytes }), 'PDF d\'origine joint');
   };
   useEffect(() => {
     ensurePdf();
@@ -325,7 +351,7 @@ function QuoteView({ quote: q }: { quote: QuoteFull }) {
     <>
       <PageHead
         breadcrumb={<><Link to="/devis">Devis</Link> / {q.number}</>}
-        title={<span className="row">Devis {q.number}{q.version > 1 ? ` v${q.version}` : ''} <Badge tone={st.tone}>{st.label}</Badge></span>}
+        title={<span className="row">Devis {q.number}{q.version > 1 ? ` v${q.version}` : ''} <Badge tone={st.tone}>{st.label}</Badge>{isExternal && <Badge tone="info" plain>Externe · réf. {q.external_ref}</Badge>}</span>}
         subtitle={<span><Link to={`/entreprises/${q.company_id}`}>{q.company_name}</Link> · {q.title || 'Sans objet'} · émis le {formatDate(q.issue_date)}{q.validity_date ? ` · valable jusqu'au ${formatDate(q.validity_date)}` : ''}</span>}
         actions={
           <>
@@ -342,7 +368,7 @@ function QuoteView({ quote: q }: { quote: QuoteFull }) {
                       <button onClick={async () => { close(); const reason = await confirm({ title: 'Devis refusé', message: 'Indiquez le motif (facultatif).', input: { label: 'Motif' }, confirmLabel: 'Marquer refusé', danger: true }); if (reason !== false) run(() => refuseQuote(ctx.db, q.id, reason || undefined), 'Devis marqué refusé'); }}><XCircle /> Marquer comme refusé</button>
                     </>
                   )}
-                  {q.status !== 'annule' && (
+                  {q.status !== 'annule' && !isExternal && (
                     <button onClick={async () => { close(); const reason = await confirm({ title: 'Créer une nouvelle version', message: q.status === 'accepte' ? 'Ce devis est ACCEPTÉ. La version acceptée et sa signature restent conservées ; la nouvelle version devra être de nouveau acceptée.' : 'La version actuelle est conservée ; une nouvelle version modifiable est créée.', input: { label: 'Motif de la modification', required: true }, confirmLabel: 'Créer la version', danger: q.status === 'accepte' }); if (reason) run(() => newVersion(ctx.db, q.id, reason), 'Nouvelle version créée'); }}><GitBranch /> Nouvelle version (modifier)</button>
                   )}
                   <button onClick={async () => { close(); const id = await run(() => duplicateQuote(ctx.db, q.id), 'Devis dupliqué'); if (id) nav(`/devis/${id}`); }}><Copy /> Dupliquer</button>
@@ -374,7 +400,11 @@ function QuoteView({ quote: q }: { quote: QuoteFull }) {
       {tab === 'document' && (
         <div className="grid-3">
           <div className="span-2">
-            {current?.pdf_path ? <StoredPdfView path={signedDoc?.signed_pdf_path ?? current.pdf_path} /> : <Loading />}
+            {current?.pdf_path ? <StoredPdfView path={signedDoc?.signed_pdf_path ?? current.pdf_path} /> : isExternal ? (
+              <Card>
+                <Empty icon={FileInput} title="Devis réalisé hors de Signal Desk" text={`Référence d'origine : ${q.external_ref}. Aucun PDF d'origine n'a été joint. Joignez-le pour le conserver (verrouillé) et pouvoir le faire signer ici.`} action={<Button variant="primary" icon={Upload} onClick={attachPdf}>Joindre le PDF d'origine</Button>} />
+              </Card>
+            ) : <Loading />}
           </div>
           <div className="col">
             <TotalsBox lines={q.lines} discount={{ type: q.global_discount_type, value: q.global_discount_value }} deposit={{ type: q.deposit_type, value: q.deposit_value }} />
