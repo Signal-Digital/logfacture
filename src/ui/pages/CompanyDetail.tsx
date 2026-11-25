@@ -7,6 +7,7 @@ import {
 import { useApp, useData } from '../core/app';
 import { Avatar, Badge, Button, Card, Dropdown, Empty, Kpi, Loading, PageHead, Tabs } from '../components/ui';
 import { CompanyFormModal } from '../forms/CompanyForm';
+import { StatusPicker, StatusStepper } from '../components/StatusPicker';
 import { ActivityFormModal, ContactFormModal, OpportunityFormModal } from '../forms/smallForms';
 import { EmailComposer } from '../forms/EmailComposer';
 import {
@@ -20,7 +21,7 @@ import { listProjects } from '@/domain/projects';
 import { listContracts } from '@/domain/contracts';
 import { listDocuments } from '@/domain/documents';
 import { formatDate, formatDateTime, formatEuro, today } from '@/lib/format';
-import { KIND_LABEL, KIND_TONE, activityType, commercialStatus, contractStatus, invoiceKind, invoiceStatus, periodicity, quoteStatus, PAYMENT_LABEL, PRIORITY_TONE, priority } from '../labels';
+import { KIND_LABEL, KIND_TONE, activityType, contractStatus, invoiceKind, invoiceStatus, periodicity, quoteStatus, PAYMENT_LABEL, PRIORITY_TONE, priority } from '../labels';
 
 type TabKey = 'apercu' | 'contacts' | 'activites' | 'opportunites' | 'devis' | 'factures' | 'paiements' | 'projets' | 'contrats' | 'documents';
 
@@ -58,7 +59,7 @@ export function CompanyDetail() {
               <span>{c.name}</span>
               <span className="row" style={{ gap: 6 }}>
                 <Badge tone={KIND_TONE[c.kind]}>{KIND_LABEL[c.kind]}</Badge>
-                <Badge tone="muted" plain>{commercialStatus(c.commercial_status)}</Badge>
+                {c.kind !== 'client' && <StatusPicker companyId={c.id} name={c.name} status={c.commercial_status} />}
                 {c.archived_at && <Badge tone="warning">Archivée</Badge>}
                 {c.merged_into_id && <Badge tone="danger">Fusionnée</Badge>}
               </span>
@@ -106,6 +107,8 @@ export function CompanyDetail() {
         }
       />
 
+      {c.kind !== 'client' && !c.archived_at && <StatusStepper companyId={c.id} name={c.name} status={c.commercial_status} />}
+      {c.commercial_status === 'perdu' && c.lost_reason && <div style={{ marginTop: -8, marginBottom: 14 }} className="muted small">Motif de perte : {c.lost_reason}</div>}
       <div className="grid-4" style={{ marginBottom: 18 }}>
         <Kpi label="Facturé (TTC)" value={formatEuro((fin?.invoiced_cents ?? 0) - (fin?.credited_cents ?? 0))} hint={fin?.credited_cents ? `dont avoirs : -${formatEuro(fin.credited_cents)}` : 'Avoirs déduits'} icon={Receipt} />
         <Kpi label="Encaissé" value={formatEuro(fin?.paid_cents ?? 0)} icon={CheckCircle2} tone="success" />

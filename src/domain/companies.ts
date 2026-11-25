@@ -11,19 +11,12 @@ import { logEvent } from './audit';
 import { BusinessError, assert } from './context';
 import { csvToObjects, toCsv } from '@/lib/csv';
 import { parseEuros } from '@/lib/money';
+import { COMMERCIAL_STATUS_DEFS } from './prospectStatus';
 
 export type CompanyKind = 'prospect' | 'client' | 'ancien_client' | 'partenaire';
 
-export const COMMERCIAL_STATUSES: { key: string; label: string }[] = [
-  { key: 'nouveau', label: 'Nouveau' },
-  { key: 'a_qualifier', label: 'À qualifier' },
-  { key: 'a_contacter', label: 'À contacter' },
-  { key: 'contacte', label: 'Contact établi' },
-  { key: 'interesse', label: 'Intéressé' },
-  { key: 'a_recontacter', label: 'À recontacter' },
-  { key: 'non_interesse', label: 'Non intéressé' },
-  { key: 'client', label: 'Client' },
-];
+/** Statuts commerciaux (définis dans prospectStatus.ts). */
+export const COMMERCIAL_STATUSES: { key: string; label: string }[] = COMMERCIAL_STATUS_DEFS.map((d) => ({ key: d.key, label: d.label }));
 
 export const SOURCES = [
   'Prospection téléphonique', 'Prospection terrain', 'Google Maps', 'Recommandation', 'Site Internet',
@@ -55,6 +48,8 @@ export interface Company {
   notes: string | null;
   next_action: string | null;
   next_action_date: string | null;
+  lost_reason: string | null;
+  status_changed_at: string | null;
   became_client_at: string | null;
   merged_into_id: number | null;
   archived_at: string | null;

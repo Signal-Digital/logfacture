@@ -1,17 +1,19 @@
 import { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Archive, Copy, Download, GitMerge, Plus, Search, Upload, Users } from 'lucide-react';
+import { Archive, Columns3, List, Copy, Download, GitMerge, Plus, Search, Upload, Users } from 'lucide-react';
 import { useApp, useData } from '../core/app';
 import { Avatar, Badge, Button, Card, Empty, Loading, Modal, PageHead, Tabs, useSort } from '../components/ui';
 import { CompanyFormModal } from '../forms/CompanyForm';
 import { ContactFormModal } from '../forms/smallForms';
 import {
-  COMMERCIAL_STATUSES, CSV_COLUMNS, SOURCES, exportCompaniesCsv, importCompaniesCsv, listCompanies, listContacts, mapCsvHeaders,
-  mergeCompanies, scanDuplicates, contactFullName, type CompanyFilter, type CompanyKind, type ImportReport,
+  CSV_COLUMNS, SOURCES, exportCompaniesCsv, importCompaniesCsv, listCompanies, listContacts, mapCsvHeaders,
+  mergeCompanies, scanDuplicates, contactFullName, type CompanyFilter, type CompanyKind, type CompanyListRow, type ImportReport,
 } from '@/domain/companies';
 import { csvToObjects } from '@/lib/csv';
 import { formatDate, formatEuro, today } from '@/lib/format';
-import { KIND_LABEL, KIND_TONE, commercialStatus } from '../labels';
+import { KIND_LABEL, KIND_TONE } from '../labels';
+import { StatusPicker, StatusPill, useStatusChange } from '../components/StatusPicker';
+import { COMMERCIAL_STATUS_DEFS, statusCounts, type CommercialStatus } from '@/domain/prospectStatus';
 
 export function CompaniesPage({ kind }: { kind?: CompanyKind }) {
   const [params, setParams] = useSearchParams();
@@ -57,6 +59,10 @@ function CompanyList({ kind }: { kind?: CompanyKind }) {
   const { sorted, header } = useSort(data, { key: 'name', dir: 'asc' });
   const isClient = kind === 'client';
   const t = today();
+  const [view, setView] = useState<'liste' | 'tableau'>(() => (localStorage.getItem('sd-prospects-vue') as any) ?? 'liste');
+  const setViewSaved = (v: 'liste' | 'tableau') => { setView(v); try { localStorage.setItem('sd-prospects-vue', v); } catch { /* stockage indisponible */ } };
+  const { data: counts } = useData((c) => statusCounts(c.db, kind), [kind]);
+  const showStatus = !isClient;
 
   const exportCsv = () =>
     run(async () => {
@@ -81,10 +87,6 @@ function CompanyList({ kind }: { kind?: CompanyKind }) {
           <Search />
           <input className="input" placeholder="Nom, contact, email, téléphone, ville…" value={f.search ?? ''} onChange={(e) => setF({ ...f, search: e.target.value })} aria-label="Rechercher" />
         </div>
-        <select className="input" style={{ width: 170 }} value={f.status ?? ''} onChange={(e) => setF({ ...f, status: e.target.value || undefined })} aria-label="Statut">
-          <option value="">Tous les statuts</option>
-          {COMMERCIAL_STATUSES.map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}
-        </select>
         <select className="input" style={{ width: 170 }} value={f.source ?? ''} onChange={(e) => setF({ ...f, source: e.target.value || undefined })} aria-label="Source">
           <option value="">Toutes les sources</option>
           {SOURCES.map((s) => <option key={s} value={s}>{s}</option>)}
@@ -101,6 +103,25 @@ function CompanyList({ kind }: { kind?: CompanyKind }) {
         <Button icon={Download} onClick={exportCsv}>Exporter CSV</Button>
         <Button icon={Copy} onClick={() => setDups(true)}>Doublons</Button>
       </div>
+      {showStatus && (
+        <div className="row between wrap" style={{ marginBottom: 12, gap: 8 }}>
+          <div className="row wrap" style={{ gap: 6 }}>
+            <button className={`chip ${!f.status ? 'on' : ''}`} onClick={() => setF({ ...f, status: undefined })}>Tous <span className="muted">{Object.values(counts ?? {}).reduce((a, b) => a + b, 0)}</span></button>
+            {COMMERCIAL_STATUS_DEFS.filter((d) => kind !== 'prospect' || d.key !== 'client' || counts?.client).map((d) => (
+              <button key={d.key} className={`chip ${f.status === d.key ? 'on' : ''}`} onClick={() => setF({ ...f, status: f.status === d.key ? undefined : d.key })} title={d.hint}>
+                <span className="dot" style={{ background: d.color }} /> {d.short} <span className="muted">{counts?.[d.key] ?? 0}</span>
+              </button>
+            ))}
+          </div>
+          <div className="btn-group">
+            <button className={`btn sm ${view === 'liste' ? 'on' : ''}`} onClick={() => setViewSaved('liste')}><List size={14} /> Liste</button>
+            <button className={`btn sm ${view === 'tableau' ? 'on' : ''}`} onClick={() => setViewSaved('tableau')}><Columns3 size={14} /> Tableau</button>
+          </div>
+        </div>
+      )}
+      {showStatus && view === 'tableau' ? (
+        <StatusBoard rows={sorted} />
+      ) : (
       <Card pad={false}>
         {loading && !data ? (
           <Loading />
@@ -134,7 +155,7 @@ function CompanyList({ kind }: { kind?: CompanyKind }) {
                       </div>
                     </td>
                     {!kind && <td><Badge tone={KIND_TONE[c.kind]}>{KIND_LABEL[c.kind]}</Badge></td>}
-                    <td>{commercialStatus(c.commercial_status)}</td>
+                    <td>{showStatus ? <StatusPicker companyId={c.id} name={c.name} status={c.commercial_status} /> : <StatusPill status={c.commercial_status} />}</td>
                     <td>{c.city}</td>
                     <td>
                       <div>{c.contact_name}</div>
@@ -157,6 +178,7 @@ function CompanyList({ kind }: { kind?: CompanyKind }) {
           </div>
         )}
       </Card>
+      )}
       <div className="muted small" style={{ marginTop: 8 }}>{sorted.length} fiche(s)</div>
       {importing && <CsvImportModal file={importing} defaultKind={kind ?? 'prospect'} onClose={() => setImporting(null)} />}
       {dups && <DuplicatesModal onClose={() => setDups(false)} />}
@@ -301,5 +323,55 @@ function ContactsList() {
         )}
       </Card>
     </>
+  );
+}
+
+/** Vue « tableau » : une colonne par statut, glisser-déposer pour changer de statut. */
+function StatusBoard({ rows }: { rows: CompanyListRow[] }) {
+  const nav = useNavigate();
+  const { change, dialog } = useStatusChange();
+  const [drag, setDrag] = useState<CompanyListRow | null>(null);
+  const [over, setOver] = useState<string | null>(null);
+  const t = today();
+  return (
+    <div className="kanban">
+      {COMMERCIAL_STATUS_DEFS.map((d) => {
+        const cards = rows.filter((r) => r.commercial_status === d.key);
+        return (
+          <div
+            key={d.key}
+            className={`kanban-col ${over === d.key ? 'over' : ''}`}
+            style={{ width: 230 }}
+            onDragOver={(e) => { e.preventDefault(); if (over !== d.key) setOver(d.key); }}
+            onDragLeave={(e) => { if (!(e.currentTarget as HTMLElement).contains(e.relatedTarget as Node)) setOver(null); }}
+            onDrop={(e) => {
+              e.preventDefault();
+              setOver(null);
+              if (drag && drag.commercial_status !== d.key) change(drag.id, drag.name, d.key as CommercialStatus);
+              setDrag(null);
+            }}
+          >
+            <div className="kanban-col-head">
+              <div className="t"><span className="dot" style={{ background: d.color }} />{d.short}<span className="muted small" style={{ marginLeft: 'auto' }}>{cards.length}</span></div>
+              <div className="muted tiny">{d.hint}</div>
+            </div>
+            <div className="kanban-col-body">
+              {cards.map((c) => (
+                <div key={c.id} className={`kcard ${drag?.id === c.id ? 'dragging' : ''}`} draggable onDragStart={(e) => { e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', String(c.id)); setDrag(c); }} onDragEnd={() => { setDrag(null); setOver(null); }} onClick={() => nav(`/entreprises/${c.id}`)}>
+                  <div className="t">{c.name}</div>
+                  <div className="c">{[c.contact_name, c.city].filter(Boolean).join(' · ')}</div>
+                  <div className="foot">
+                    <span>{c.potential_cents ? formatEuro(c.potential_cents) : ''}</span>
+                    {c.next_action_date && <span className="tiny" style={{ color: c.next_action_date < t ? 'var(--danger)' : 'var(--muted)' }}>Relance {formatDate(c.next_action_date)}</span>}
+                  </div>
+                  {d.key === 'perdu' && c.lost_reason && <div className="tiny muted">{c.lost_reason}</div>}
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })}
+      {dialog}
+    </div>
   );
 }

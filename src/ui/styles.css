@@ -472,3 +472,20 @@ table.table { width: 100%; border-collapse: separate; border-spacing: 0; font-si
   .sidebar, .topbar, .no-print { display: none !important; }
   .app { display: block; }
 }
+
+/* ---------- Statut commercial ---------- */
+.status-pill { display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 9px; border-radius: 20px; font: inherit; font-size: 12px; font-weight: 600; white-space: nowrap;
+  color: var(--c); background: color-mix(in srgb, var(--c) 14%, transparent); border: 1px solid color-mix(in srgb, var(--c) 30%, transparent); }
+.status-pill i { width: 7px; height: 7px; border-radius: 50%; background: var(--c); }
+.status-pill.clickable { cursor: pointer; }
+.status-pill.clickable:hover { background: color-mix(in srgb, var(--c) 22%, transparent); }
+.stepper { display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 10px 14px; margin-bottom: 18px; }
+.stepper .steps { display: flex; align-items: center; flex-wrap: wrap; gap: 2px; }
+.stepper .step { display: flex; align-items: center; gap: 7px; border: 0; background: none; font: inherit; font-size: 12.5px; color: var(--muted); padding: 6px 10px 6px 6px; border-radius: 20px; cursor: pointer; position: relative; }
+.stepper .step:not(:last-child)::after { content: ''; width: 14px; height: 2px; background: var(--border-strong); margin-left: 6px; border-radius: 2px; }
+.stepper .step:hover { background: var(--surface-2); color: var(--text); }
+.stepper .bullet { width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; font-size: 10.5px; font-weight: 700; border: 1.5px solid var(--border-strong); background: var(--surface); }
+.stepper .step.done { color: var(--text-2); }
+.stepper .step.done .bullet { background: var(--c); border-color: var(--c); color: #fff; }
+.stepper .step.active { color: var(--c); font-weight: 650; background: color-mix(in srgb, var(--c) 12%, transparent); }
+.stepper .step.active .bullet { border-color: var(--c); background: var(--c); color: #fff; box-shadow: 0 0 0 3px color-mix(in srgb, var(--c) 25%, transparent); }

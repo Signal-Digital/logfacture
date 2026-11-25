@@ -581,6 +581,25 @@ ALTER TABLE quotes ADD COLUMN external_ref TEXT;
 CREATE INDEX idx_quotes_external_ref ON quotes(external_ref);
 `,
   },
+  {
+    version: 3,
+    name: 'statuts commerciaux simplifiés',
+    sql: `
+ALTER TABLE companies ADD COLUMN lost_reason TEXT;
+ALTER TABLE companies ADD COLUMN status_changed_at TEXT;
+UPDATE companies SET commercial_status = 'a_contacter' WHERE commercial_status = 'a_qualifier';
+UPDATE companies SET commercial_status = 'contacte' WHERE commercial_status = 'interesse';
+UPDATE companies SET commercial_status = 'perdu' WHERE commercial_status = 'non_interesse';
+UPDATE companies SET commercial_status = 'client' WHERE kind = 'client';
+UPDATE companies SET commercial_status = 'nouveau'
+  WHERE commercial_status NOT IN ('nouveau','a_contacter','contacte','rdv','devis_en_cours','devis_envoye','client','a_recontacter','perdu');
+-- Les prospects ayant un devis en cours reçoivent le statut correspondant.
+UPDATE companies SET commercial_status = 'devis_envoye'
+  WHERE kind <> 'client' AND EXISTS (SELECT 1 FROM quotes q WHERE q.company_id = companies.id AND q.status IN ('envoye','attente_signature'));
+UPDATE companies SET commercial_status = 'devis_en_cours'
+  WHERE kind <> 'client' AND commercial_status NOT IN ('devis_envoye') AND EXISTS (SELECT 1 FROM quotes q WHERE q.company_id = companies.id AND q.status = 'brouillon');
+`,
+  },
 ];
 
 export async function migrate(db: Db): Promise<number> {

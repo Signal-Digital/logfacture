@@ -105,6 +105,7 @@ export async function createActivity(db: Db, input: ActivityInput): Promise<numb
     keys.map((k) => data[k]),
   );
   if (data.company_id) await refreshNextAction(db, data.company_id);
+  if (data.company_id && data.status === 'fait') await advanceFromActivity(db, data.company_id, data.type);
   return r.lastInsertId;
 }
 
@@ -143,6 +144,14 @@ export async function setActivityStatus(db: Db, id: number, status: ActivityStat
     );
   }
   if (a.company_id) await refreshNextAction(db, a.company_id);
+  if (a.company_id && status === 'fait') await advanceFromActivity(db, a.company_id, a.type);
+}
+
+/** Un échange réalisé fait avancer le prospect (appel → « Contacté », rendez-vous/audit → « RDV / audit »). */
+async function advanceFromActivity(db: Db, companyId: number, type: ActivityType) {
+  const { autoStatus } = await import('./prospectStatus');
+  if (type === 'rdv' || type === 'audit' || type === 'reunion') await autoStatus(db, companyId, 'rdv', `${ACTIVITY_TYPES.find((t) => t.key === type)?.label.toLowerCase()} réalisé(e)`);
+  else if (type === 'appel' || type === 'email') await autoStatus(db, companyId, 'contacte', `${type === 'appel' ? 'appel' : 'email'} réalisé`);
 }
 
 const FOLLOW_UP_TYPES = "('relance','appel','rdv','email','reunion','audit')";

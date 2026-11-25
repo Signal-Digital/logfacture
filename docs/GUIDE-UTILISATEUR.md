@@ -21,6 +21,16 @@
 9. **Relances** : « Relancer » prépare le rappel avant échéance, la première relance ou la relance finale, à copier ou ouvrir dans votre messagerie.
 10. **Tableau de bord et rapports** : facturé, encaissé, restant dû et prévisionnel sont toujours présentés séparément.
 
+## Statut des prospects
+
+Chaque prospect a un statut qui suit le parcours de vente : **Nouveau → À contacter → Contacté → RDV / audit → Devis en préparation → Devis envoyé → Gagné**, plus deux sorties : **À recontacter** et **Perdu**.
+
+- **Changer en un clic** : cliquez sur la pastille de statut dans la liste des prospects ou en haut de la fiche, ou cliquez sur une étape de la frise de la fiche.
+- **Vue Tableau** (page Prospects, bouton « Tableau ») : une colonne par statut ; faites glisser une fiche d'une colonne à l'autre.
+- **Filtres** : les pastilles au-dessus de la liste filtrent par statut et affichent le nombre de fiches.
+- **« Perdu »** demande un motif (budget, concurrent, pas de réponse…) ; **« À recontacter »** demande une date et crée la relance correspondante.
+- **Mises à jour automatiques** (sans jamais faire reculer un statut) : appel ou email réalisé → Contacté ; rendez-vous ou audit réalisé → RDV / audit ; devis créé → Devis en préparation ; devis finalisé → Devis envoyé ; devis accepté ou signé → Gagné (la fiche devient client) ; devis refusé (et aucun autre en cours) → Perdu ; devis expiré → À recontacter. Chaque changement est inscrit dans la chronologie de la fiche.
+
 ## Points clés
 
 - **Une facture émise ne se modifie pas et ne se supprime pas** : utilisez Actions → **Créer un avoir** (total ou partiel). Un avoir total passe la facture en « Annulée (avoir) ».

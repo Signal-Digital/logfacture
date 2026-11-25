@@ -27,6 +27,7 @@ import {
   type SellerSnapshot,
 } from './docCommon';
 import { getAllSettings } from './settings';
+import { autoStatus } from './prospectStatus';
 
 export type QuoteStatus = 'brouillon' | 'envoye' | 'attente_signature' | 'accepte' | 'refuse' | 'expire' | 'annule';
 
@@ -170,6 +171,7 @@ export async function createQuote(db: Db, input: QuoteHeaderInput & { company_id
     const id = r.lastInsertId;
     if (lines.length) await saveLines(t, 'quote_lines', 'quote_id', id, lines);
     await logEvent(t, { entity: 'devis', id, action: 'creation', summary: `Devis ${number} créé (brouillon)`, companyId: input.company_id });
+    await autoStatus(t, input.company_id, 'devis_en_cours', `devis ${number} en préparation`);
     return id;
   });
 }
@@ -287,6 +289,7 @@ export async function finalizeQuote(db: Db, id: number, opts: { awaitingSignatur
         await t.run("UPDATE opportunities SET stage_id = ?, probability = MAX(probability, 60), updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id = ? AND status = 'open' AND stage_id IN (SELECT id FROM pipeline_stages WHERE position < (SELECT position FROM pipeline_stages WHERE id = ?))", [stage.id, q.opportunity_id, stage.id]);
       }
     }
+    await autoStatus(t, q.company_id, 'devis_envoye', `devis ${q.number} ${status === 'envoye' ? 'envoyé' : 'en attente de signature'}`);
     await logEvent(t, {
       entity: 'devis', id, action: 'finalisation',
       summary: `Devis ${q.number} v${q.version} finalisé (${status === 'envoye' ? 'envoyé' : 'en attente de signature'}) — empreinte ${hash.slice(0, 12)}…`,
@@ -399,6 +402,7 @@ export async function refuseQuote(db: Db, id: number, reason?: string): Promise<
     await t.run("UPDATE quotes SET status = 'refuse', refused_at = strftime('%Y-%m-%dT%H:%M:%fZ','now'), updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id = ?", [id]);
     await t.run("UPDATE signature_requests SET status = 'annulee' WHERE quote_id = ? AND status = 'ouverte'", [id]);
     await logEvent(t, { entity: 'devis', id, action: 'refus', summary: `Devis ${q.number} refusé${reason ? ' : ' + reason : ''}`, companyId: q.company_id });
+    await autoStatus(t, q.company_id, 'perdu', reason ? `devis refusé : ${reason}` : 'devis refusé');
   });
 }
 
@@ -422,6 +426,7 @@ export async function expireQuotes(db: Db, asOf = today()): Promise<number> {
     await db.run("UPDATE quotes SET status = 'expire', updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id = ?", [q.id]);
     await db.run("UPDATE signature_requests SET status = 'expiree' WHERE quote_id = ? AND status = 'ouverte'", [q.id]);
     await logEvent(db, { entity: 'devis', id: q.id, action: 'expiration', summary: `Devis ${q.number} expiré (validité au ${q.validity_date})`, companyId: q.company_id });
+    await autoStatus(db, q.company_id, 'a_recontacter', `devis ${q.number} expiré`);
   }
   return rows.length;
 }

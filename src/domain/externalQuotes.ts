@@ -15,6 +15,7 @@ import { createCompany, normalizeName, type Company, type CompanyKind } from './
 import { acceptQuote, createQuote, finalizeQuote, refuseQuote, attachVersionPdf, type QuoteStatus } from './quotes';
 import { storeDocument } from './documents';
 import { getAllSettings } from './settings';
+import { autoStatus } from './prospectStatus';
 import { csvToObjects } from '@/lib/csv';
 import { parseEuros, parsePercent } from '@/lib/money';
 import { today } from '@/lib/format';
@@ -144,6 +145,7 @@ export async function registerExternalQuote(ctx: Ctx, input: ExternalQuoteInput)
       await refuseQuote(t, id, input.note?.trim() || undefined);
     } else if (input.status === 'expire') {
       await t.run("UPDATE quotes SET status = 'expire' WHERE id = ?", [id]);
+      await autoStatus(t, q!.company_id, 'a_recontacter', `devis ${ref} expiré`);
     }
     await logEvent(t, {
       entity: 'devis', id, action: 'devis_externe',
