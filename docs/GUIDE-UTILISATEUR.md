@@ -29,6 +29,7 @@ Chaque prospect a un statut qui suit le parcours de vente : **Nouveau → À con
 - **Vue Tableau** (page Prospects, bouton « Tableau ») : une colonne par statut ; faites glisser une fiche d'une colonne à l'autre.
 - **Filtres** : les pastilles au-dessus de la liste filtrent par statut et affichent le nombre de fiches.
 - **« Perdu »** demande un motif (budget, concurrent, pas de réponse…) ; **« À recontacter »** demande une date et crée la relance correspondante.
+- **Pipeline commercial synchronisé** : chaque prospect a une carte dans le pipeline, placée dans l'étape correspondant à son statut. Changer le statut déplace la carte ; déplacer la carte change le statut (« Client gagné » demande toujours une confirmation). La première opportunité que vous créez pour un prospect remplace sa carte automatique ; si un prospect a plusieurs affaires, chacune suit son propre devis. Le lien étape ↔ statut se règle dans Paramètres → Pipeline.
 - **Mises à jour automatiques** (sans jamais faire reculer un statut) : appel ou email réalisé → Contacté ; rendez-vous ou audit réalisé → RDV / audit ; devis créé → Devis en préparation ; devis finalisé → Devis envoyé ; devis accepté ou signé → Gagné (la fiche devient client) ; devis refusé (et aucun autre en cours) → Perdu ; devis expiré → À recontacter. Chaque changement est inscrit dans la chronologie de la fiche.
 
 ## Points clés

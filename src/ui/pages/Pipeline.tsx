@@ -43,8 +43,8 @@ export function PipelinePage() {
     if (r?.lost && opp) {
       const reason = await confirm({ title: 'Opportunité perdue', message: `Pourquoi « ${opp.title} » est-elle perdue ? (facultatif)`, input: { label: 'Motif', placeholder: 'Budget, concurrent, pas de réponse…' }, confirmLabel: 'Enregistrer' });
       if (reason) {
-        const { updateOpportunity } = await import('@/domain/pipeline');
-        await run(() => updateOpportunity(ctx.db, id, { lost_reason: reason }));
+        const { setLostReason } = await import('@/domain/pipeline');
+        await run(() => setLostReason(ctx.db, id, reason));
       }
     }
   };
@@ -53,7 +53,7 @@ export function PipelinePage() {
     <>
       <PageHead
         title="Pipeline commercial"
-        subtitle={summary ? `${summary.open_count} opportunité(s) ouverte(s) · ${formatEuro(summary.total_cents)} HT au total · ${formatEuro(summary.weighted_cents)} HT pondéré (prévisionnel)` : ''}
+        subtitle={summary ? `Synchronisé avec le statut des prospects · ${summary.open_count} opportunité(s) ouverte(s) · ${formatEuro(summary.total_cents)} HT au total · ${formatEuro(summary.weighted_cents)} HT pondéré (prévisionnel)` : ''}
         actions={
           <>
             <div className="search">

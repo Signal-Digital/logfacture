@@ -600,6 +600,30 @@ UPDATE companies SET commercial_status = 'devis_en_cours'
   WHERE kind <> 'client' AND commercial_status NOT IN ('devis_envoye') AND EXISTS (SELECT 1 FROM quotes q WHERE q.company_id = companies.id AND q.status = 'brouillon');
 `,
   },
+  {
+    version: 4,
+    name: 'pipeline relié aux statuts des prospects',
+    sql: `
+-- Chaque étape du pipeline correspond à un statut commercial du prospect.
+ALTER TABLE pipeline_stages ADD COLUMN status_key TEXT;
+-- Opportunité créée automatiquement pour un prospect (remplacée par la première opportunité saisie).
+ALTER TABLE opportunities ADD COLUMN is_auto INTEGER NOT NULL DEFAULT 0;
+UPDATE pipeline_stages SET status_key = CASE name
+  WHEN 'Nouveau prospect' THEN 'nouveau'
+  WHEN 'À qualifier' THEN 'a_contacter'
+  WHEN 'À contacter' THEN 'a_contacter'
+  WHEN 'Contact établi' THEN 'contacte'
+  WHEN 'Audit gratuit proposé' THEN 'rdv'
+  WHEN 'Rendez-vous prévu' THEN 'rdv'
+  WHEN 'Proposition commerciale envoyée' THEN 'devis_en_cours'
+  WHEN 'Devis envoyé' THEN 'devis_envoye'
+  WHEN 'Négociation' THEN 'devis_envoye'
+  WHEN 'À recontacter' THEN 'a_recontacter'
+  ELSE NULL END;
+UPDATE pipeline_stages SET status_key = 'client' WHERE kind = 'won';
+UPDATE pipeline_stages SET status_key = 'perdu' WHERE kind = 'lost';
+`,
+  },
 ];
 
 export async function migrate(db: Db): Promise<number> {

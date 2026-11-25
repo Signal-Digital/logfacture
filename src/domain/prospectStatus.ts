@@ -71,6 +71,7 @@ export async function setCommercialStatus(db: Db, companyId: number, status: Com
       await createActivity(t, { type: 'relance', title: `Recontacter ${c.name}`, company_id: companyId, due_at: `${opts.followUpDate}T09:00:00`, notes: opts.reason ?? null });
       await t.run('UPDATE companies SET next_action = ?, next_action_date = ? WHERE id = ?', [`Recontacter ${c.name}`, opts.followUpDate, companyId]);
     }
+    if (c.commercial_status !== status) await syncOpportunity(t, companyId, status, opts.reason ?? null);
     if (c.commercial_status !== status) {
       await logEvent(t, {
         entity: 'entreprise', id: companyId, action: 'statut',
@@ -109,6 +110,78 @@ export async function autoStatus(db: Db, companyId: number, target: CommercialSt
     [target, target === 'perdu' ? reason : null, companyId],
   );
   await logEvent(db, { entity: 'entreprise', id: companyId, action: 'statut_auto', summary: `Statut mis à jour automatiquement : ${cur.label} → ${tgt.label} (${reason})`, companyId });
+  await syncOpportunity(db, companyId, target, target === 'perdu' ? reason : null);
+}
+
+// ---------- Lien avec le pipeline commercial ----------
+
+/** Étape du pipeline correspondant à un statut (la première dans l'ordre du pipeline). */
+export async function stageForStatus(db: Db, status: string) {
+  return db.get<{ id: number; name: string; kind: 'open' | 'won' | 'lost'; default_probability: number }>(
+    'SELECT id, name, kind, default_probability FROM pipeline_stages WHERE status_key = ? AND archived_at IS NULL ORDER BY position, id LIMIT 1',
+    [status],
+  );
+}
+
+/**
+ * Répercute le statut d'un prospect dans le pipeline :
+ *  - aucune opportunité en cours : elle est créée (sauf « Perdu » et « Gagné ») ;
+ *  - une seule opportunité en cours : elle est déplacée dans l'étape correspondante ;
+ *  - plusieurs opportunités : elles ne sont pas déplacées (chacune suit son devis).
+ * Les opportunités déjà dans une étape de même statut ne bougent pas.
+ */
+export async function syncOpportunity(db: Db, companyId: number, status: string, lostReason: string | null = null): Promise<void> {
+  const stage = await stageForStatus(db, status);
+  if (!stage) return;
+  const company = await db.get<{ name: string; potential_cents: number; kind: string }>('SELECT name, potential_cents, kind FROM companies WHERE id = ?', [companyId]);
+  if (!company) return;
+  const opps = await db.all<{ id: number; stage_id: number; probability: number; stage_status: string | null; title: string; is_auto: number }>(
+    `SELECT o.id, o.stage_id, o.probability, o.title, o.is_auto, s.status_key AS stage_status FROM opportunities o JOIN pipeline_stages s ON s.id = o.stage_id
+     WHERE o.company_id = ? AND o.status = 'open' AND o.archived_at IS NULL`,
+    [companyId],
+  );
+  if (opps.length === 0) {
+    if (stage.kind !== 'open' || company.kind === 'client') return;
+    const max = await db.get<{ p: number }>('SELECT COALESCE(MAX(position), 0) AS p FROM opportunities WHERE stage_id = ?', [stage.id]);
+    const r = await db.run(
+      `INSERT INTO opportunities (company_id, title, stage_id, amount_cents, probability, status, position, is_auto) VALUES (?, ?, ?, ?, ?, 'open', ?, 1)`,
+      [companyId, company.name, stage.id, company.potential_cents ?? 0, stage.default_probability, (max?.p ?? 0) + 1],
+    );
+    await logEvent(db, { entity: 'opportunite', id: r.lastInsertId, action: 'creation', summary: `Ajouté au pipeline : ${company.name} (${stage.name})`, companyId });
+    return;
+  }
+  if (opps.length > 1) return;
+  const o = opps[0];
+  if (o.stage_status === status || o.stage_id === stage.id) return;
+  // Une affaire saisie n'est gagnée que par son devis accepté (ou à la main) :
+  // devenir client pour une autre raison (ex. facture ponctuelle) ne la clôt pas.
+  if (status === 'client' && !o.is_auto) return;
+  const max = await db.get<{ p: number }>('SELECT COALESCE(MAX(position), 0) AS p FROM opportunities WHERE stage_id = ?', [stage.id]);
+  const oppStatus = stage.kind === 'won' ? 'won' : stage.kind === 'lost' ? 'lost' : 'open';
+  await db.run(
+    `UPDATE opportunities SET stage_id = ?, position = ?, status = ?, probability = ?, lost_reason = CASE WHEN ? = 'lost' THEN ? ELSE lost_reason END,
+       closed_at = CASE WHEN ? = 'open' THEN NULL ELSE COALESCE(closed_at, strftime('%Y-%m-%dT%H:%M:%fZ','now')) END,
+       updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id = ?`,
+    [stage.id, (max?.p ?? 0) + 1, oppStatus, stage.kind === 'open' ? Math.max(o.probability, stage.default_probability) : stage.default_probability, oppStatus, lostReason, oppStatus, o.id],
+  );
+  await logEvent(db, { entity: 'opportunite', id: o.id, action: 'changement_etape', summary: `« ${o.title} » déplacée dans le pipeline : ${stage.name} (statut du prospect)`, companyId });
+}
+
+/**
+ * Rattrapage (une fois) : place dans le pipeline les prospects actifs qui n'y
+ * sont pas encore, et aligne les opportunités uniques sur le statut du prospect.
+ */
+export async function backfillPipeline(db: Db): Promise<number> {
+  const companies = await db.all<{ id: number; commercial_status: string }>(
+    "SELECT id, commercial_status FROM companies WHERE kind = 'prospect' AND archived_at IS NULL AND merged_into_id IS NULL",
+  );
+  let n = 0;
+  for (const c of companies) {
+    const before = await db.get<{ n: number }>("SELECT COUNT(*) AS n FROM opportunities WHERE company_id = ? AND status = 'open' AND archived_at IS NULL", [c.id]);
+    await syncOpportunity(db, c.id, c.commercial_status);
+    if ((before?.n ?? 0) === 0) n++;
+  }
+  return n;
 }
 
 export async function statusCounts(db: Db, kind: string | string[] | undefined): Promise<Record<string, number>> {

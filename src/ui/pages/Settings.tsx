@@ -6,6 +6,8 @@ import {
 } from 'lucide-react';
 import { useApp, useData } from '../core/app';
 import { useLeaveGuard } from '../core/guard';
+import { StatusPill } from '../components/StatusPicker';
+import { COMMERCIAL_STATUS_DEFS } from '@/domain/prospectStatus';
 import { Alert, Badge, Button, Card, Field, Loading, Modal, PageHead, Switch } from '../components/ui';
 import {
   checkAdministrativeSetup, setSetting, validateIban, validateSiret, sellerDisplayName, type AllSettings, type SettingsKey,
@@ -299,11 +301,12 @@ function PipelineSection() {
     run(() => reorderStages(ctx.db, ids));
   };
   return (
-    <Card title="Étapes du pipeline commercial" actions={<Button size="sm" icon={Plus} onClick={() => setEdit({ name: '', kind: 'open', default_probability: 20, color: '#60a5fa' })}>Ajouter une étape</Button>}>
+    <Card title="Étapes du pipeline commercial (reliées au statut des prospects)" actions={<Button size="sm" icon={Plus} onClick={() => setEdit({ name: '', kind: 'open', default_probability: 20, color: '#60a5fa' })}>Ajouter une étape</Button>}>
       {!stages ? <Loading /> : stages.map((s, i) => (
         <div key={s.id} className="list-row">
           <span className="dot" style={{ background: s.color }} />
           <span className="grow strong">{s.name}</span>
+          {s.status_key ? <StatusPill status={s.status_key} size="sm" /> : <span className="tiny muted">Aucun statut lié</span>}
           <Badge tone={s.kind === 'won' ? 'success' : s.kind === 'lost' ? 'danger' : 'muted'} plain>{s.kind === 'won' ? 'Gagnée' : s.kind === 'lost' ? 'Perdue' : `${s.default_probability} %`}</Badge>
           <Button size="sm" variant="ghost" icon={ArrowUp} disabled={i === 0} onClick={() => move(i, -1)} aria-label="Monter" />
           <Button size="sm" variant="ghost" icon={ArrowDown} disabled={i === stages.length - 1} onClick={() => move(i, 1)} aria-label="Descendre" />
@@ -318,6 +321,14 @@ function PipelineSection() {
             <Field label="Type"><select className="input" value={edit.kind} onChange={(e) => setEdit({ ...edit, kind: e.target.value as any })}><option value="open">En cours</option><option value="won">Gagnée (crée le client)</option><option value="lost">Perdue</option></select></Field>
             <Field label="Probabilité par défaut (%)"><input className="input num" type="number" min={0} max={100} value={edit.default_probability ?? 0} onChange={(e) => setEdit({ ...edit, default_probability: Number(e.target.value) })} /></Field>
             <Field label="Couleur"><input className="input" type="color" value={edit.color ?? '#64748b'} onChange={(e) => setEdit({ ...edit, color: e.target.value })} /></Field>
+            {edit.kind === 'open' && (
+              <Field label="Statut du prospect correspondant" className="span-2" help="Déplacer une carte dans cette étape met le prospect à ce statut ; un prospect qui atteint ce statut est placé dans cette étape.">
+                <select className="input" value={edit.status_key ?? ''} onChange={(e) => setEdit({ ...edit, status_key: e.target.value || null })}>
+                  <option value="">— Aucun —</option>
+                  {COMMERCIAL_STATUS_DEFS.filter((d) => d.key !== 'client' && d.key !== 'perdu').map((d) => <option key={d.key} value={d.key}>{d.label}</option>)}
+                </select>
+              </Field>
+            )}
           </div>
         </Modal>
       )}

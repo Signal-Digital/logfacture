@@ -11,6 +11,7 @@ export interface Stage {
   kind: 'open' | 'won' | 'lost';
   default_probability: number;
   color: string;
+  status_key: string | null;
   archived_at: string | null;
 }
 
@@ -27,6 +28,7 @@ export interface Opportunity {
   lost_reason: string | null;
   notes: string | null;
   position: number;
+  is_auto: number;
   closed_at: string | null;
   archived_at: string | null;
   created_at: string;
@@ -42,18 +44,18 @@ export interface OpportunityRow extends Opportunity {
 }
 
 export const DEFAULT_STAGES: Omit<Stage, 'id' | 'archived_at'>[] = [
-  { name: 'Nouveau prospect', position: 1, kind: 'open', default_probability: 5, color: '#94a3b8' },
-  { name: 'À qualifier', position: 2, kind: 'open', default_probability: 10, color: '#a5b4fc' },
-  { name: 'À contacter', position: 3, kind: 'open', default_probability: 10, color: '#818cf8' },
-  { name: 'Contact établi', position: 4, kind: 'open', default_probability: 20, color: '#60a5fa' },
-  { name: 'Audit gratuit proposé', position: 5, kind: 'open', default_probability: 30, color: '#38bdf8' },
-  { name: 'Rendez-vous prévu', position: 6, kind: 'open', default_probability: 40, color: '#22d3ee' },
-  { name: 'Proposition commerciale envoyée', position: 7, kind: 'open', default_probability: 50, color: '#2dd4bf' },
-  { name: 'Devis envoyé', position: 8, kind: 'open', default_probability: 60, color: '#14b8a6' },
-  { name: 'Négociation', position: 9, kind: 'open', default_probability: 75, color: '#f59e0b' },
-  { name: 'Client gagné', position: 10, kind: 'won', default_probability: 100, color: '#22c55e' },
-  { name: 'Perdu', position: 11, kind: 'lost', default_probability: 0, color: '#ef4444' },
-  { name: 'À recontacter', position: 12, kind: 'open', default_probability: 10, color: '#a855f7' },
+  { name: 'Nouveau prospect', position: 1, kind: 'open', default_probability: 5, color: '#94a3b8', status_key: 'nouveau' },
+  { name: 'À qualifier', position: 2, kind: 'open', default_probability: 10, color: '#a5b4fc', status_key: 'a_contacter' },
+  { name: 'À contacter', position: 3, kind: 'open', default_probability: 10, color: '#818cf8', status_key: 'a_contacter' },
+  { name: 'Contact établi', position: 4, kind: 'open', default_probability: 20, color: '#60a5fa', status_key: 'contacte' },
+  { name: 'Audit gratuit proposé', position: 5, kind: 'open', default_probability: 30, color: '#38bdf8', status_key: 'rdv' },
+  { name: 'Rendez-vous prévu', position: 6, kind: 'open', default_probability: 40, color: '#22d3ee', status_key: 'rdv' },
+  { name: 'Proposition commerciale envoyée', position: 7, kind: 'open', default_probability: 50, color: '#2dd4bf', status_key: 'devis_en_cours' },
+  { name: 'Devis envoyé', position: 8, kind: 'open', default_probability: 60, color: '#14b8a6', status_key: 'devis_envoye' },
+  { name: 'Négociation', position: 9, kind: 'open', default_probability: 75, color: '#f59e0b', status_key: 'devis_envoye' },
+  { name: 'Client gagné', position: 10, kind: 'won', default_probability: 100, color: '#22c55e', status_key: 'client' },
+  { name: 'Perdu', position: 11, kind: 'lost', default_probability: 0, color: '#ef4444', status_key: 'perdu' },
+  { name: 'À recontacter', position: 12, kind: 'open', default_probability: 10, color: '#a855f7', status_key: 'a_recontacter' },
 ];
 
 export async function listStages(db: Db, includeArchived = false): Promise<Stage[]> {
@@ -62,15 +64,16 @@ export async function listStages(db: Db, includeArchived = false): Promise<Stage
 
 export async function saveStage(db: Db, s: Partial<Stage> & { name: string }): Promise<number> {
   assert(s.name.trim(), "Le nom de l'étape est obligatoire.");
+  const statusKey = s.kind === 'won' ? 'client' : s.kind === 'lost' ? 'perdu' : s.status_key ?? null;
   if (s.id) {
-    await db.run('UPDATE pipeline_stages SET name = ?, kind = ?, default_probability = ?, color = ? WHERE id = ?', [
-      s.name.trim(), s.kind ?? 'open', s.default_probability ?? 10, s.color ?? '#64748b', s.id,
+    await db.run('UPDATE pipeline_stages SET name = ?, kind = ?, default_probability = ?, color = ?, status_key = ? WHERE id = ?', [
+      s.name.trim(), s.kind ?? 'open', s.default_probability ?? 10, s.color ?? '#64748b', statusKey, s.id,
     ]);
     return s.id;
   }
   const max = await db.get<{ p: number }>('SELECT COALESCE(MAX(position), 0) AS p FROM pipeline_stages');
-  const r = await db.run('INSERT INTO pipeline_stages (name, position, kind, default_probability, color) VALUES (?, ?, ?, ?, ?)', [
-    s.name.trim(), (max?.p ?? 0) + 1, s.kind ?? 'open', s.default_probability ?? 10, s.color ?? '#64748b',
+  const r = await db.run('INSERT INTO pipeline_stages (name, position, kind, default_probability, color, status_key) VALUES (?, ?, ?, ?, ?, ?)', [
+    s.name.trim(), (max?.p ?? 0) + 1, s.kind ?? 'open', s.default_probability ?? 10, s.color ?? '#64748b', statusKey,
   ]);
   return r.lastInsertId;
 }
@@ -103,6 +106,20 @@ export async function createOpportunity(db: Db, input: OpportunityInput): Promis
   assert(input.company_id, 'Une entreprise doit être associée.');
   if (input.amount_cents != null && (input.amount_cents < 0 || !Number.isSafeInteger(input.amount_cents))) throw new BusinessError('Montant invalide.');
   return db.tx(async (t) => {
+    // La fiche du prospect a une carte créée automatiquement : la première
+    // opportunité saisie la remplace (pas de doublon dans le pipeline).
+    const auto = await t.get<Opportunity>("SELECT * FROM opportunities WHERE company_id = ? AND is_auto = 1 AND status = 'open' AND archived_at IS NULL ORDER BY id LIMIT 1", [input.company_id]);
+    if (auto) {
+      const st = input.stage_id ? await t.get<Stage>('SELECT * FROM pipeline_stages WHERE id = ?', [input.stage_id]) : null;
+      await t.run(
+        `UPDATE opportunities SET title = ?, contact_id = ?, amount_cents = ?, probability = ?, expected_close_date = ?, notes = ?, stage_id = ?, is_auto = 0,
+           updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id = ?`,
+        [input.title.trim(), input.contact_id ?? null, input.amount_cents ?? auto.amount_cents, clampProb(input.probability ?? st?.default_probability ?? auto.probability),
+          input.expected_close_date ?? null, input.notes ?? null, st && st.kind === 'open' ? st.id : auto.stage_id, auto.id],
+      );
+      await logEvent(t, { entity: 'opportunite', id: auto.id, action: 'modification', summary: `Opportunité précisée : ${input.title.trim()}`, companyId: input.company_id });
+      return auto.id;
+    }
     const stages = await listStages(t);
     const stage = input.stage_id ? stages.find((s) => s.id === input.stage_id) : stages.find((s) => s.kind === 'open');
     assert(stage, 'Étape du pipeline introuvable.');
@@ -205,9 +222,35 @@ export async function moveOpportunity(db: Db, id: number, stageId: number, befor
     if (o.stage_id !== stageId) {
       const from = await t.get<{ name: string }>('SELECT name FROM pipeline_stages WHERE id = ?', [o.stage_id]);
       await logEvent(t, { entity: 'opportunite', id, action: 'changement_etape', summary: `« ${o.title} » : ${from?.name ?? '?'} → ${stage.name}`, companyId: o.company_id });
+      await syncCompanyFromStage(t, o.company_id, stage);
     }
     return { won: status === 'won' && o.status !== 'won', lost: status === 'lost', companyId: o.company_id };
   });
+}
+
+/**
+ * Déplacer une opportunité met à jour le statut du prospect (sauf « Gagné »,
+ * qui passe par la confirmation, et « Perdu » si d'autres affaires sont en cours).
+ */
+async function syncCompanyFromStage(db: Db, companyId: number, stage: Stage) {
+  const target = stage.status_key;
+  if (!target || target === 'client') return;
+  const c = await db.get<{ kind: string; commercial_status: string; name: string }>('SELECT kind, commercial_status, name FROM companies WHERE id = ?', [companyId]);
+  if (!c || c.kind === 'client' || c.commercial_status === target) return;
+  if (target === 'perdu') {
+    const open = await db.get<{ n: number }>("SELECT COUNT(*) AS n FROM opportunities WHERE company_id = ? AND status = 'open' AND archived_at IS NULL", [companyId]);
+    if ((open?.n ?? 0) > 0) return;
+  }
+  await db.run("UPDATE companies SET commercial_status = ?, status_changed_at = strftime('%Y-%m-%dT%H:%M:%fZ','now'), updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id = ?", [target, companyId]);
+  await logEvent(db, { entity: 'entreprise', id: companyId, action: 'statut', summary: `Statut mis à jour depuis le pipeline : ${stage.name}`, companyId });
+}
+
+/** Le motif de perte saisi dans le pipeline est aussi enregistré sur la fiche. */
+export async function setLostReason(db: Db, opportunityId: number, reason: string): Promise<void> {
+  const o = await getOpportunity(db, opportunityId);
+  assert(o, 'Opportunité introuvable.');
+  await db.run('UPDATE opportunities SET lost_reason = ? WHERE id = ?', [reason, opportunityId]);
+  await db.run("UPDATE companies SET lost_reason = ? WHERE id = ? AND commercial_status = 'perdu'", [reason, o.company_id]);
 }
 
 /**

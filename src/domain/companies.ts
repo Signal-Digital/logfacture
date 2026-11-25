@@ -137,6 +137,10 @@ export async function createCompany(db: Db, input: CompanyInput): Promise<number
     const id = r.lastInsertId;
     if (data.kind === 'client') await t.run("UPDATE companies SET became_client_at = strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id = ?", [id]);
     await logEvent(t, { entity: 'entreprise', id, action: 'creation', summary: `${data.kind === 'client' ? 'Client' : 'Prospect'} créé : ${data.name}`, companyId: id });
+    if (data.kind === 'prospect') {
+      const { syncOpportunity } = await import('./prospectStatus');
+      await syncOpportunity(t, id, data.commercial_status ?? 'nouveau');
+    }
     return id;
   });
 }
@@ -156,6 +160,10 @@ export async function updateCompany(db: Db, id: number, input: Partial<CompanyIn
       [...keys.map((k) => data[k]), id],
     );
     const changed = keys.filter((k) => (before as any)[k] !== data[k]);
+    if (changed.includes('commercial_status') && before.kind !== 'client') {
+      const { syncOpportunity } = await import('./prospectStatus');
+      await syncOpportunity(t, id, data.commercial_status);
+    }
     if (changed.length) {
       await logEvent(t, { entity: 'entreprise', id, action: 'modification', summary: `Fiche modifiée (${changed.join(', ')})`, companyId: id });
     }
@@ -252,6 +260,8 @@ export async function convertToClient(db: Db, id: number, reason = 'Conversion m
       [id],
     );
     await logEvent(t, { entity: 'entreprise', id, action: 'conversion_client', summary: `${c.name} devient client (${reason})`, companyId: id });
+    const { syncOpportunity } = await import('./prospectStatus');
+    await syncOpportunity(t, id, 'client');
     return true;
   });
 }

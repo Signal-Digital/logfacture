@@ -152,6 +152,11 @@ export async function createQuote(db: Db, input: QuoteHeaderInput & { company_id
     assert(company, 'Entreprise introuvable.');
     const issue = input.issue_date ?? today();
     const number = await nextNumber(t, 'devis', issue, s);
+    if (input.opportunity_id == null) {
+      // Une seule affaire en cours pour ce client : le devis lui est rattaché.
+      const opps = await t.all<{ id: number }>("SELECT id FROM opportunities WHERE company_id = ? AND status = 'open' AND archived_at IS NULL", [input.company_id]);
+      if (opps.length === 1) input = { ...input, opportunity_id: opps[0].id };
+    }
     const lines = input.lines ?? [];
     const totals = computeTotals(lines, { type: input.global_discount_type ?? 'none', value: input.global_discount_value ?? 0 });
     const r = await t.run(
@@ -284,7 +289,8 @@ export async function finalizeQuote(db: Db, id: number, opts: { awaitingSignatur
       id, q.version, json, hash, opts.external ? 'Devis externe enregistré' : q.version === 1 ? 'Version initiale' : 'Nouvelle version',
     ]);
     if (q.opportunity_id) {
-      const stage = await t.get<{ id: number }>("SELECT id FROM pipeline_stages WHERE name = 'Devis envoyé' AND archived_at IS NULL");
+      await t.run('UPDATE opportunities SET amount_cents = ? WHERE id = ? AND amount_cents = 0', [q.totals.total_ht_cents, q.opportunity_id]);
+      const stage = await t.get<{ id: number }>("SELECT id FROM pipeline_stages WHERE status_key = 'devis_envoye' AND archived_at IS NULL ORDER BY position LIMIT 1");
       if (stage) {
         await t.run("UPDATE opportunities SET stage_id = ?, probability = MAX(probability, 60), updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id = ? AND status = 'open' AND stage_id IN (SELECT id FROM pipeline_stages WHERE position < (SELECT position FROM pipeline_stages WHERE id = ?))", [stage.id, q.opportunity_id, stage.id]);
       }

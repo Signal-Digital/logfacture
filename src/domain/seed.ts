@@ -13,6 +13,7 @@ export async function initDatabase(db: Db): Promise<{ firstRun: boolean }> {
   const seeded = await db.get<{ value: string }>("SELECT value FROM settings WHERE key = '_seeded'");
   if (seeded) {
     await ensureEmailTemplates(db);
+    await pipelineBackfillOnce(db);
     return { firstRun: false };
   }
   await db.tx(async (t) => {
@@ -22,7 +23,7 @@ export async function initDatabase(db: Db): Promise<{ firstRun: boolean }> {
     }
     if (!(await t.get('SELECT 1 FROM pipeline_stages'))) {
       for (const s of DEFAULT_STAGES) {
-        await t.run('INSERT INTO pipeline_stages (name, position, kind, default_probability, color) VALUES (?, ?, ?, ?, ?)', [s.name, s.position, s.kind, s.default_probability, s.color]);
+        await t.run('INSERT INTO pipeline_stages (name, position, kind, default_probability, color, status_key) VALUES (?, ?, ?, ?, ?, ?)', [s.name, s.position, s.kind, s.default_probability, s.color, s.status_key]);
       }
     }
     if (!(await t.get('SELECT 1 FROM project_statuses'))) {
@@ -50,7 +51,18 @@ export async function initDatabase(db: Db): Promise<{ firstRun: boolean }> {
     await t.run("INSERT INTO settings (key, value) VALUES ('_seeded', ?)", [JSON.stringify(new Date().toISOString())]);
   });
   await ensureEmailTemplates(db);
+  await db.run("INSERT INTO settings (key, value) VALUES ('_pipeline_sync_v1', '1') ON CONFLICT(key) DO NOTHING");
   return { firstRun: true };
+}
+
+/** Mise à jour 0.4 : les prospects existants sont placés une fois dans le pipeline. */
+async function pipelineBackfillOnce(db: Db) {
+  if (await db.get("SELECT 1 FROM settings WHERE key = '_pipeline_sync_v1'")) return;
+  await db.tx(async (t) => {
+    const { backfillPipeline } = await import('./prospectStatus');
+    await backfillPipeline(t);
+    await t.run("INSERT INTO settings (key, value) VALUES ('_pipeline_sync_v1', '1')");
+  });
 }
 
 /** Ajoute les modèles d'email fournis manquants (sans écraser les personnalisations). */
